@@ -1,6 +1,7 @@
 -- # -*- coding: utf-8 -*-
 -- # Created by Luis Fuentes
 
+-- Table creation
 CREATE OR REPLACE TABLE T_TSHEETS_TIMESHEETS_STG
 (
     id              VARCHAR(255),
@@ -16,22 +17,21 @@ CREATE OR REPLACE TABLE T_TSHEETS_TIMESHEETS_STG
     location        VARCHAR(255),
     on_the_clock    VARCHAR(255),
     locked          VARCHAR(255),
-    notes           VARCHAR(255),
-    customfields    VARCHAR(500),
+    notes           VARCHAR(16777216),
+    customfields    VARCHAR(16777216),
     last_modified   VARCHAR(255)
 );
 
 -- Staging data into the Table Stage @%
-PUT file://C:\Users\lf188653\Desktop\Data\global\TSHEETS\timesheets.csv @%T_TSHEETS_TIMESHEETS_STG/2020/04/27 AUTO_COMPRESS=true;
+PUT file://C:\Users\lf188653\Desktop\Data\global\TSHEETS\timesheets.csv @%T_TSHEETS_TIMESHEETS_STG/2020/04 AUTO_COMPRESS=true;
 
--- Listing out all the data stage for this table
 LIST @%T_TSHEETS_TIMESHEETS_STG;
 
--- Loading data into tables requires a warehouse
-ALTER WAREHOUSE BI_WH RESUME;
- 
+BEGIN;
+TRUNCATE TABLE T_TSHEETS_TIMESHEETS_STG;
+
 COPY INTO T_TSHEETS_TIMESHEETS_STG
-  FROM @%T_TSHEETS_TIMESHEETS_STG/2020/04/27
+  FROM @%T_TSHEETS_TIMESHEETS_STG/2020/04
   FILE_FORMAT = (TYPE='CSV'
                  FIELD_DELIMITER = ','
                  SKIP_HEADER = 1
@@ -42,5 +42,24 @@ COPY INTO T_TSHEETS_TIMESHEETS_STG
   PATTERN = '.*.gz'
   ON_ERROR = 'skip_file'
   PURGE = TRUE;
+  
+COMMIT;
+  
+SELECT MAX(LEN(NOTES)), MAX(LEN(customfields))
+FROM T_TSHEETS_TIMESHEETS_STG
 
---INSERT INTO <target_table> (col1, col2, etc) SELECT col1, PARSE_JSON(col2), etc, from <temp_table>;
+SELECT * 
+FROM T_TSHEETS_TIMESHEETS_STG
+LIMIT 10;
+
+--to_variant(customfields) AS customfields_new
+--parse_json(customfields) AS customfields_new
+
+WITH CTL AS (
+  SELECT customfields, TRY_PARSE_JSON(customfields) AS customfields_new 
+  FROM T_TSHEETS_TIMESHEETS_STG
+)
+SELECT customfields_new, customfields_new:"122645"    
+FROM CTL;
+
+
